@@ -4,9 +4,28 @@
  */
 function class2Function(classString){
   const className=classString.split(" ")[1].split("{")[0]
-  const funcs=getFunctions(classString.substring(classString.indexOf("{")+1,classString.lastIndexOf("}")))
-  const constructorFunction=funcs.find(v=>v.name==="constructor")
-  const constructorFunctionString=`function ${className}${constructorFunction.arguments}${constructorFunction.body}`
+  let parent
+  if(classString.split(" ")[2]==="extends"){
+    parent=classString.split(" ")[3].split("{")[0]
+  }
+
+  const classBody=classString.substring(...getSameDepthRange(classString,"{","}").map((v,i)=>v+i*-2+1))
+  const funcs=getFunctions(classBody)
+  const constructorFunc=funcs.find(v=>v.name==="constructor")
+  let constructorFuncString=""
+  if(parent){
+    if(constructorFunc){
+      const s=constructorFunc.body.substring(constructorFunc.body.indexOf("super"))
+    const superArgs=s.substring(...getSameDepthRange(s,"(",")")).replace(/[()]/g,"")
+    constructorFunc.body=constructorFunc.body.replace(/super(.*)/,`${parent}.call(this,${superArgs})`)
+      constructorFuncString=`function ${className}${constructorFunc.arguments}${constructorFunc.body}`
+    }else{
+      constructorFuncString=`function ${className}(...args){
+        ${parent}.call(this,...args)
+      }`
+    }
+    
+  }
   const methods=funcs.filter(v=>v.name!=="constructor")
     .map(({name,arguments,body,isGetter,isSetter,isStatic})=>{
       let property=""
@@ -21,29 +40,36 @@ function class2Function(classString){
       }else{
         property=`function${arguments}${body}`
       }
-      return `Object.defineProperty(${className+(isStatic?"":".prototype")},${name},${property})`
+      return `Object.defineProperty("${className+(isStatic?'':'.prototype')}",${name},${property})`
     })
-  return [constructorFunctionString,...methods].join("\n\n")
+  return [constructorFuncString,...methods].join("\n\n")
 }
 
 function getEndOfFunction(funString){
+  const argslen=getSameDepthRange(funString,"(",")")[1]
+  let bodylen=getSameDepthRange(funString.substring(argslen),"{","}")[1]
+  if(!argslen||!bodylen)return 0
+  return bodylen+argslen
+}
+
+function getSameDepthRange(str,open,close){
+  const start=str.indexOf(open)
   let depth=0
-  let start=0
-  for(let i=0;i<funString.length;i++){
-    if(funString[i]==="{"){
-      depth++
-      if(start===0)start=i
+  for(let i=start;Boolean(str[i]);i++){
+    if(str[i]===open)depth++
+    if(str[i]===close){
+      depth--
+      if(depth===0)return [start,i+1]
     }
-    if(funString[i]==="}")depth--
-    if(start!==0&&depth===0)return i+1
   }
-  return funString.length
+  return false
 }
 
 function getFunctions(classBody){
   let result=[]
-  while(classBody){
+  while(true){
     let end=getEndOfFunction(classBody)
+    if(end===0)break
     result.push(classBody.substring(0,end))
     classBody=classBody.substring(end)
   }
@@ -62,11 +88,25 @@ function getFunctions(classBody){
       str=str.substring(3)
     }
     result.name=str.match(/\w+/)[0]
-    result.arguments=str.match(/\([\w,]*\)/)[0]
-    result.body=str.substring(str.search("{"),getEndOfFunction(str))
+    result.arguments=str.substring(...getSameDepthRange(str,"(",")"))
+    result.body=str.substring(getSameDepthRange(str,"(",")")[1],getEndOfFunction(str))
     return result
   }).filter(v=>v)
 }
 
-
+let str=`
+class Hoge extends Array{
+  constructor({}={}){
+    super(arr,bar)
+  }
+  sayHoge(){
+    console.log("hoge")
+  }
+}
+`
+let s=`
+("aa")
+super(hoge)
+`
+const boundary="\n---------\n"
 exports.class2Function=class2Function
