@@ -7,11 +7,23 @@ function class2Function(classString){
   const funcs=getFunctions(classString.substring(classString.indexOf("{")+1,classString.lastIndexOf("}")))
   const constructorFunction=funcs.find(v=>v.name==="constructor")
   const constructorFunctionString=`function ${className}${constructorFunction.arguments}${constructorFunction.body}`
-
-  const instanceFuncs=funcs.filter(v=>v.name!=="constructor"&&!v.isStatic&&!v.isSetter&&!v.isGetter)
-    .map(func=>`${className}.prototype.${func.name}=function${func.arguments}${func.body}`)
-  console.log(instanceFuncs)
-  const staticFuncs=funcs.filter(v=>v.isStatic)
+  const methods=funcs.filter(v=>v.name!=="constructor")
+    .map(({name,arguments,body,isGetter,isSetter,isStatic})=>{
+      let property=""
+      if(isGetter){
+        property=`{
+          get:function()${body}
+        }`
+      }else if(isSetter){
+        property=`{
+          set:function${arguments}${body}
+        }`
+      }else{
+        property=`function${arguments}${body}`
+      }
+      return `Object.defineProperty(${className+(isStatic?"":".prototype")},${name},${property})`
+    })
+  return [constructorFunctionString,...methods].join("\n\n")
 }
 
 function getEndOfFunction(funString){
@@ -40,12 +52,12 @@ function getFunctions(classBody){
     if(!str.match(/\w/))return false
     str=str.substring(str.match(/\w/).index)
     const result={}
-    result.isStatic=str.startsWith("static")
+    result.isStatic=str.startsWith("static ")
     if(result.isStatic){
       str=str.substring(7)
     }
-    result.isGetter=str.startsWith("get")
-    result.isSetter=str.startsWith("set")
+    result.isGetter=str.startsWith("get ")
+    result.isSetter=str.startsWith("set ")
     if(result.isGetter||result.isSetter){
       str=str.substring(3)
     }
@@ -57,27 +69,4 @@ function getFunctions(classBody){
 }
 
 
-console.log(class2Function(`
-class Hoge{
-  constructor(hoge){
-    this.hoge=hoge
-    this.fn=function(){
-      let a={hello:{"world"}}
-    }
-    this.obj={foo:"bar"}
-  }
-
-  log(){
-    console.log(this.hoge)
-  }
-
-  change(str){
-    this.hoge=str
-  }
-
-  static sayHoge(){
-    console.log("Hoge!!")
-  }
-
-}
-`))
+exports.class2Function=class2Function

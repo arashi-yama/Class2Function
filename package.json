@@ -1,12 +1,15 @@
 {
   "name": "class2function",
   "version": "1.0.0",
-  "description": "",
+  "description": "This change the javasctipt code from class syntax to old function-prototype syntax.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "arashiyama <arashiyama1120@gmail.com>",
-  "license": "ISC"
+  "license": "MIT",
+  "dependencies": {
+    "js-beautify": "^1.14.3"
+  }
 }
