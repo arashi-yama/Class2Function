@@ -38,9 +38,9 @@ function class2Function(classString){
           set:function${arguments}${body}
         }`
       }else{
-        property=`function${arguments}${body}`
+        return `${className}.prototype.${name}=function${arguments}${body}`
       }
-      return `Object.defineProperty("${className+(isStatic?'':'.prototype')}",${name},${property})`
+      return `Object.defineProperty(${className+(isStatic?'':'.prototype')},"${name}",${property})`
     })
   return [constructorFuncString,...methods].join("\n\n")
 }
